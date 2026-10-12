@@ -1,0 +1,13 @@
+*.sqlite
+*.sqlite3
+*.db
+*.backup-*
+database.db/
+tools/content/
+*NATIS*.pdf
+*.zip
+.vscode/
+Thumbs.db
+desktop.ini
+includes/send_reset_email.php
+uploads/profiles/
