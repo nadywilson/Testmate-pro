@@ -97,6 +97,10 @@ const STUDY_GROUPS = [
     'Road Safety' => ['Road safety', '#d97706'],
     'Road Traffic Law' => ['Road traffic law', '#7c3aed'],
 ];
+/** Categories that are reading-only: no pictures on the card, no videos or quiz buttons. */
+const STUDY_READ_ONLY = ["Learner's Licence Basics"];
+function studyReadOnly(string $cat): bool { return in_array($cat, STUDY_READ_ONLY, true); }
+const STUDY_ICON_LICENCE = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2.2"/><path d="M5.5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h4.5M14 13h3"/></svg>';
 
 $topics = [];
 $topic = null;
@@ -208,6 +212,13 @@ include __DIR__ . '/includes/header.php';
 .sm-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(16,39,68,.1)}
 .sm-card[hidden]{display:none}
 .sm-card-img{position:relative;display:block;aspect-ratio:16/8;background:#dfe9f5 center/cover no-repeat;border-bottom:4px solid var(--accent,#147df5)}
+.sm-card-icon{display:flex;align-items:center;justify-content:center;width:64px;height:64px;margin:22px 20px 0;border-radius:16px;background:#eaf3ff;color:#147df5;text-decoration:none}
+.sm-card-plain{border-top:4px solid var(--accent,#147df5)}
+.sm-actions-one{grid-template-columns:1fr}
+.sm-hero.sm-hero-plain{grid-template-columns:auto minmax(0,1fr);align-items:center}
+@media(max-width:820px){.sm-hero.sm-hero-plain{grid-template-columns:1fr}.sm-hero-icon{margin:24px 0 0 20px;width:72px;height:72px}}
+.sm-hero-icon{display:flex;align-items:center;justify-content:center;width:96px;height:96px;margin:28px 0 28px 30px;border-radius:22px;background:#eaf3ff;color:#147df5}
+.sm-hero-icon svg{width:52px;height:52px}
 .sm-card-img .sm-emoji{position:absolute;inset:0;display:grid;place-items:center;font-size:54px}
 .sm-card-body{flex:1;display:flex;flex-direction:column;gap:6px;padding:18px 20px 20px}
 .sm-card-cat{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--accent,#147df5)}
@@ -349,24 +360,35 @@ include __DIR__ . '/includes/header.php';
             </div>
             <div class="sm-grid">
                 <?php foreach ($list as $t): $id = (int)$t['id']; $img = studyTopicImage($id, (string)$t['name']); ?>
-                    <article class="sm-card" style="--accent:<?= $accent ?>" data-search="<?= studyEsc(studyLower($t['name'] . ' ' . ($t['description'] ?? ''))) ?>">
+                    <?php $ro = studyReadOnly($cat); ?>
+                    <article class="sm-card<?= $ro ? ' sm-card-plain' : '' ?>" style="--accent:<?= $accent ?>" data-search="<?= studyEsc(studyLower($t['name'] . ' ' . ($t['description'] ?? ''))) ?>">
+                        <?php if ($ro): ?>
+                        <a class="sm-card-icon" href="/study-materials.php?topic=<?= $id ?>&amp;mode=read" aria-label="<?= studyEsc($t['name']) ?>"><?= STUDY_ICON_LICENCE ?></a>
+                        <?php else: ?>
                         <a class="sm-card-img" href="/study-materials.php?topic=<?= $id ?>&amp;mode=read" <?= $img ? 'style="background-image:url(\'' . studyEsc($img) . '\')"' : '' ?> aria-label="<?= studyEsc($t['name']) ?>">
                             <?php if (!$img): ?><span class="sm-emoji"><?= studyEsc($t['icon'] ?? '📘') ?></span><?php endif; ?>
                         </a>
+                        <?php endif; ?>
                         <div class="sm-card-body">
                             <span class="sm-card-cat"><?= studyEsc(STUDY_GROUPS[$cat][0] ?? $cat) ?></span>
                             <h3><a href="/study-materials.php?topic=<?= $id ?>&amp;mode=read"><?= studyEsc($t['name']) ?></a></h3>
                             <p><?= studyEsc($t['description'] ?? '') ?></p>
                             <div class="sm-meta">
                                 <span><?= (int)$t['lesson_count'] ?> lessons</span>
-                                <span><?= (int)$t['video_count'] ?> videos</span>
-                                <?php if ((int)$t['sim_count']): ?><span><?= (int)$t['sim_count'] ?> simulations</span><?php endif; ?>
+                                <?php if (!$ro): ?><span><?= (int)$t['video_count'] ?> videos</span><?php endif; ?>
+                                <?php if (!$ro && (int)$t['sim_count']): ?><span><?= (int)$t['sim_count'] ?> simulations</span><?php endif; ?>
                             </div>
+                            <?php if ($ro): ?>
+                            <div class="sm-actions sm-actions-one">
+                                <a class="sm-btn sm-btn-primary" href="/study-materials.php?topic=<?= $id ?>&amp;mode=read">Read</a>
+                            </div>
+                            <?php else: ?>
                             <div class="sm-actions">
                                 <a class="sm-btn sm-btn-ghost" href="/study-materials.php?topic=<?= $id ?>&amp;mode=read">Read</a>
                                 <a class="sm-btn sm-btn-primary" href="/study-materials.php?topic=<?= $id ?>&amp;mode=video#topic-content">&#9654; Watch</a>
                                 <a class="sm-btn sm-btn-soft" href="/quiz.php?topic=<?= $id ?>">&#10003; Quiz</a>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </article>
                 <?php endforeach; ?>
@@ -375,34 +397,40 @@ include __DIR__ . '/includes/header.php';
     <?php endforeach; ?>
     <div class="sm-empty" id="smNoResults" hidden>No topics match your search.</div>
 
-<?php else: $tid = (int)$topic['id']; $img = studyTopicImage($tid, (string)$topic['name']); $cat = trim((string)($topic['category'] ?? '')) ?: 'Road Traffic Law'; ?>
+<?php else: $tid = (int)$topic['id']; $img = studyTopicImage($tid, (string)$topic['name']); $cat = trim((string)($topic['category'] ?? '')) ?: 'Road Traffic Law';
+    $ro = studyReadOnly($cat); if ($ro) { $mode = 'read'; } ?>
 
     <a class="sm-back" href="/study-materials.php">&larr; All study topics</a>
 
-    <section class="sm-hero">
-        <div class="sm-hero-img" <?= $img ? 'style="background-image:url(\'' . studyEsc($img) . '\')"' : '' ?>></div>
+    <section class="sm-hero<?= $ro ? ' sm-hero-plain' : '' ?>">
+        <?php if ($ro): ?><div class="sm-hero-icon"><?= STUDY_ICON_LICENCE ?></div><?php else: ?>
+        <div class="sm-hero-img" <?= $img ? 'style="background-image:url(\'' . studyEsc($img) . '\')"' : '' ?>></div><?php endif; ?>
         <div class="sm-hero-body">
             <span class="sm-kicker" style="color:<?= STUDY_GROUPS[$cat][1] ?? '#2c7bd6' ?>"><?= studyEsc(STUDY_GROUPS[$cat][0] ?? $cat) ?></span>
             <h1><?= studyEsc($topic['name']) ?></h1>
             <p><?= studyEsc($topic['description'] ?? '') ?></p>
             <div class="sm-meta">
                 <span><?= count($lessons) ?> lessons</span>
-                <span><?= count($videos) ?> videos</span>
-                <?php if ($simulations): ?><span><?= count($simulations) ?> simulations</span><?php endif; ?>
+                <?php if (!$ro): ?><span><?= count($videos) ?> videos</span><?php endif; ?>
+                <?php if (!$ro && $simulations): ?><span><?= count($simulations) ?> simulations</span><?php endif; ?>
                 <?php if ((int)$topic['question_count']): ?><span><?= (int)$topic['question_count'] ?> quiz questions</span><?php endif; ?>
             </div>
             <div class="sm-hero-actions">
-                <a class="sm-btn sm-btn-primary" href="/study-materials.php?topic=<?= $tid ?>&amp;mode=read#topic-content">Start lesson</a>
+                <a class="sm-btn sm-btn-primary" href="/study-materials.php?topic=<?= $tid ?>&amp;mode=read#topic-content"><?= $ro ? 'Start reading' : 'Start lesson' ?></a>
+                <?php if (!$ro): ?>
                 <a class="sm-btn sm-btn-ghost" href="/study-materials.php?topic=<?= $tid ?>&amp;mode=video#topic-content">&#9654; Videos</a>
                 <a class="sm-btn sm-btn-soft" href="/quiz.php?topic=<?= $tid ?>">&#10003; Take the quiz</a>
+                <?php endif; ?>
             </div>
         </div>
     </section>
 
+    <?php if ($ro): ?><div id="topic-content"></div><?php else: ?>
     <nav class="sm-tabs" id="topic-content" aria-label="Topic sections">
         <a class="sm-tab <?= $mode === 'read' ? 'active' : '' ?>" href="/study-materials.php?topic=<?= $tid ?>&amp;mode=read#topic-content">Lesson</a>
         <a class="sm-tab <?= $mode === 'video' ? 'active' : '' ?>" href="/study-materials.php?topic=<?= $tid ?>&amp;mode=video#topic-content">Videos &amp; simulations</a>
     </nav>
+    <?php endif; ?>
 
     <?php if ($mode === 'read'): ?>
 
@@ -429,13 +457,13 @@ include __DIR__ . '/includes/header.php';
                             <div class="sm-lesson-num"><?= $i + 1 ?></div>
                             <div><span>Lesson <?= $i + 1 ?> of <?= count($lessons) ?></span><h2><?= studyEsc($l['title']) ?></h2></div>
                         </header>
-                        <?php if ($file !== '' && $type === 'image'): ?>
+                        <?php if ($file !== '' && $type === 'image' && !$ro): ?>
                             <figure class="sm-lesson-fig"><img src="<?= studyEsc($file) ?>" alt="<?= studyEsc($l['title']) ?>" loading="lazy"></figure>
                         <?php endif; ?>
                         <div class="sm-lesson-body"><?= studyRenderLesson((string)($l['content'] ?? '')) ?></div>
                         <div class="sm-lesson-foot">
                             <?php if ($file !== '' && $type === 'pdf'): ?><a class="sm-btn sm-btn-ghost" href="<?= studyEsc($file) ?>" target="_blank" rel="noopener">Open PDF</a><?php endif; ?>
-                            <?php if ($vid): ?><a class="sm-btn sm-btn-primary" href="/study-materials.php?topic=<?= $tid ?>&amp;mode=video#video-<?= (int)$vid['id'] ?>">&#9654; Watch this lesson</a><?php endif; ?>
+                            <?php if ($vid && !$ro): ?><a class="sm-btn sm-btn-primary" href="/study-materials.php?topic=<?= $tid ?>&amp;mode=video#video-<?= (int)$vid['id'] ?>">&#9654; Watch this lesson</a><?php endif; ?>
                             <?php if (isset($lessons[$i + 1])): ?><a class="sm-btn sm-btn-ghost" href="#lesson-<?= (int)$lessons[$i + 1]['id'] ?>">Next lesson &rarr;</a><?php endif; ?>
                         </div>
                     </article>
@@ -485,6 +513,12 @@ include __DIR__ . '/includes/header.php';
                     <?php endforeach; ?>
                 <?php endif; ?>
 
+                <?php if ($ro): ?>
+                <section class="sm-cta">
+                    <div><h3>Finished reading?</h3><p>Continue with the other licence basics topics, then move on to road signs.</p></div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="sm-btn sm-btn-primary" href="/study-materials.php">All study topics</a></div>
+                </section>
+                <?php else: ?>
                 <section class="sm-cta">
                     <div><h3>Ready to test yourself?</h3><p>Take the full <?= studyEsc($topic['name']) ?> quiz, or watch the videos first.</p></div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -492,6 +526,7 @@ include __DIR__ . '/includes/header.php';
                         <a class="sm-btn sm-btn-primary" href="/quiz.php?topic=<?= $tid ?>">Take the quiz</a>
                     </div>
                 </section>
+                <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>
